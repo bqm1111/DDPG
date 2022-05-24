@@ -1,0 +1,37 @@
+% close figure 1;
+test.action = zeros(parameter.maxit,6);
+parameterReset;
+test.Reward = 0.0;
+for i = 1:parameter.maxit
+    tempt = state0_o + action0_o;
+    control.image.netKu = [train.gainKp train.gainKi train.gainKd].*nnKu.forward([state0_o(:,2:4) action0_o(:,2:4)]);
+    control.image.netKw = [train.gainKp train.gainKi train.gainKd].*nnKw.forward([state0_o(:,6:8) action0_o(:,6:8)]);
+    control.image.Kp = [control.image.netKu(1) 0;0 control.image.netKw(1)];
+    control.image.Ki = [control.image.netKu(2) 0;0 control.image.netKw(2)];
+    control.image.Kd = [control.image.netKu(3) 0;0 control.image.netKw(3)];
+    test.action(i,:) = [control.image.netKu,control.image.netKw];
+    [gimbal,control ] = sceneSteering( tempt,image,gimbal,control,environment);
+    [image,control,gimbal,train,state1_o,action1_o] = simulatorDelay(image,control,gimbal,train,environment,state0_o,action0_o);
+    tempt1 = state1_o+action1_o;
+    test.Reward = test.Reward+ rewardFunc([state1_o(3),state1_o(7)],[state1_o(2),state1_o(6)]);
+    state0_o = state1_o;
+    action0_o = action1_o;
+    test.state(i,:) = [state1_o(2),state1_o(6)];
+    test.delta_state(i,:) = [action1_o(2),action1_o(6)];
+    test.time(i,:) = (i-1)*environment.dt*environment.substeps;
+end
+hh = figure(2);
+subplot(411);plot(test.time,test.state);grid on;
+legend('u(pixel)','w(pixel)','Location','northeast');
+subplot(412);plot(test.time,[test.action(:,1) test.action(:,4)]);grid on;
+legend('A1','A4','Location','northeast');
+subplot(413);plot(test.time,[test.action(:,2) test.action(:,5)]);grid on;
+legend('A2','A5','Location','northeast');
+subplot(414);plot(test.time,[test.action(:,3) test.action(:,6)]);grid on;
+legend('A3','A6','Location','northeast');
+fprintf('***********************************\n');
+fprintf('Test Reward = %6.1f\n',test.Reward);
+% figure(3);
+% subplot(311);plot(test.time,test.state);grid on;
+% subplot(312);plot(test.time,test.delta_state);grid on;
+% subplot(313);plot(test.time,test.state+test.delta_state);grid on;
